@@ -16,7 +16,7 @@ using namespace std;
 int main(int argc, char* argv[]) {
 
     //set fov of image
-    double FOV = 90.0;
+    double FOV = 100.0;
     //load image
     Mat image = imread("../photos/104_8445982227_0414221e99_o.jpg");
 
