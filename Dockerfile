@@ -16,6 +16,7 @@ RUN     apt-get update \
             libeigen3-dev \
             libsuitesparse-dev
 
+
 RUN     git clone https://github.com/opencv/opencv.git \
         &&  cd opencv \
         &&  mkdir release \

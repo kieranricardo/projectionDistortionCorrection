@@ -189,7 +189,7 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
     }
 
     Solver::Options options;
-    options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
     Solver::Summary summary;
     Solve(options, problem, &summary);
