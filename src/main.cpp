@@ -87,6 +87,22 @@ int main(int argc, char* argv[]) {
             if (outImage.at<Vec3b>(y_, x_-1) == blackpixel) {
                 outImage.at<Vec3b>(y_, x_-1) = image.at<Vec3b>(y,x);
             }
+
+            if (outImage.at<Vec3b>(y_+1, x_+1) == blackpixel) {
+                outImage.at<Vec3b>(y_+1, x_+1) = image.at<Vec3b>(y,x);
+            }
+
+            if (outImage.at<Vec3b>(y_-1, x_-1) == blackpixel) {
+                outImage.at<Vec3b>(y_-1, x_-1) = image.at<Vec3b>(y,x);
+            }
+
+            if (outImage.at<Vec3b>(y_-1, x_+1) == blackpixel) {
+                outImage.at<Vec3b>(y_-1, x_+1) = image.at<Vec3b>(y,x);
+            }
+
+            if (outImage.at<Vec3b>(y_+1, x_-1) == blackpixel) {
+                outImage.at<Vec3b>(y_+1, x_-1) = image.at<Vec3b>(y,x);
+            }
         }
     }
 

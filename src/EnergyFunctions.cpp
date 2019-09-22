@@ -45,8 +45,10 @@ struct BoundaryEnergy {
     template <typename T>
     bool operator()(const T* const x, T* residuals) const {
         if (boundaryFlag == 0) {
+            //lower boundary
             residuals[0] = T(2) * T(x[0] > boundaryValue) * (x[0] - boundaryValue);
         } else {
+            //upper boundary
             residuals[0] = T(2) * T(x[0] < boundaryValue) * (x[0] - boundaryValue);
         }
         return true;
@@ -65,6 +67,7 @@ struct BoundaryEnergy {
 
 struct FaceRegularizer {
     template <typename T>
+    //prevent scaling faces too much
     bool operator()(const T* const a, T* residuals) const {
         residuals[0] = T(2) * T(45) * (T(1.0) - a[0]);
         return true;
@@ -74,6 +77,8 @@ struct FaceRegularizer {
 
 struct Regularizer {
     template <typename T>
+    //prevent vertex from moving too far from neighbours
+    //maybe replace original mesh with prev time step for video?
     bool operator()(const T* const x1, const T* const y1, const T* const x2, const T* const y2, T* residual) const {
         residual[0] = T(0.7) * (x1[0] - x2[0]);
         residual[1] = T(0.7) * (y1[0] - y2[0]);
@@ -84,6 +89,7 @@ struct Regularizer {
 
 struct LineBending {
     template <typename T>
+    //prevent local twiting of grid --> prevents rotation, try prevent shear instead?
     bool operator()(const T* const v1, const T* const v2, T* residual) const {
         residual[0] = T(1.4) * (v1[0] - v2[0]);
         return true;
@@ -104,17 +110,11 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
         b_s[i] = 0.0;
         tx_s[i] = 0.0;
         ty_s[i] = 0.0;
-        //cout << faces[i].x << " " << faces[i].y << endl;
         int y0 = int(double(faces[i].y) * double(quad_yxmap->rows - 8) / double(image->rows)) + 4;
         int x0 = int(double(faces[i].x) * double(quad_yxmap->cols - 8) / double(image->cols)) + 4;
 
         int width = int(double(faces[i].width) * double(quad_yxmap->cols - 8) / double(image->cols));
         int height = int(double(faces[i].height) * double(quad_yxmap->rows - 8) / double(image->rows));
-
-        cout << faces[i].x << " " << faces[i].y << endl;
-        cout << faces[i].width << " " << faces[i].height << endl << endl;
-        cout << x0 << " " << y0 << endl;
-        cout << width << " " << height << endl;
 
         for(int y=y0; y < (y0 + height); y++) {
             for (int x=x0; x < (x0 + width); x++) {
@@ -140,6 +140,7 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
     for(int y=0; y < quad_yxmap->rows; y++) {
         for (int x=0; x < quad_yxmap->cols; x++) {
             for (int i=0; i<4; i++) {
+
                 int x_ = x + deltas[i][0];
                 int y_ = y + deltas[i][1];
                 int k = int((deltas[i][0] != 0));
