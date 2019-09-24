@@ -75,7 +75,8 @@ int main(int argc, char* argv[]) {
     // Capture frame-by-frame
     cap >> image;
 
-    VideoWriter video("../photos/outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'),10, Size(image.cols, image.rows));
+    VideoWriter video("../photos/outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'),10,
+            Size(image.cols, image.rows));
 
     //set fov of image
     double FOV = 100.0;
