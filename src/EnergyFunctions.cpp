@@ -11,6 +11,30 @@ using namespace std;
 using namespace ceres;
 
 
+struct TimeEnergy {
+    TimeEnergy(double last_x, double last_y)
+            : last_x(last_x), last_y(last_y) {}
+
+    template <typename T>
+    bool operator()(const T* const x, const T* const y, T* residuals) const {
+        residuals[0] = T(2) * (last_x  - T(x[0]));
+        residuals[1] = T(2) * (last_y - T(y[0]));
+        return true;
+    }
+
+    // Factory to hide the construction of the CostFunction object from
+    // the client code.
+    static ceres::CostFunction* Create(const double last_x,
+                                       const double last_y) {
+        return (new ceres::AutoDiffCostFunction<TimeEnergy, 2, 1, 1>(
+                new TimeEnergy(last_x, last_y)));
+    }
+
+    double last_x;
+    double last_y;
+};
+
+
 struct FaceEnergy {
     FaceEnergy(double stereo_x, double stereo_y, double m)
             : stereo_x(stereo_x), stereo_y(stereo_y), m(m) {}
@@ -97,8 +121,8 @@ struct LineBending {
 };
 
 
-void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yxmap,
-                   std::vector<Rect> faces, double ra, double rb){
+void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yxmap, Mat *last_mesh,
+                   std::vector<Rect> faces, double ra, double rb, int max_iter){
 
     double a_s[faces.size()];
     double b_s[faces.size()];
@@ -121,7 +145,7 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
                 double x_ = double(image->cols) * (double(x-4) / double(quad_yxmap->cols-8)) - (double(image->cols) / 2);
                 double y_ = double(image->rows) * (double(y-4) / double(quad_yxmap->rows-8)) - (double(image->rows) / 2);
                 double rp = std::sqrt((x_ * x_) + (y_ * y_));
-                double m =  std::sqrt(1.0 / (1.0 + std::exp(-(rp-ra) / rb))); //sqrt to account for squaring in residual
+                double m =  1.0; //std::sqrt(1.0 / (1.0 + std::exp(-(rp-ra) / rb))); //sqrt to account for squaring in residual
 
                 ceres::CostFunction * cost_function =
                         FaceEnergy::Create(stereo_yxmap->at<Vec2d>(y,x)[0], stereo_yxmap->at<Vec2d>(y,x)[1], m);
@@ -133,6 +157,13 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
         CostFunction* cost_function =
                 new AutoDiffCostFunction<FaceRegularizer, 1, 1>(new FaceRegularizer);
         problem->AddResidualBlock(cost_function, NULL, &a_s[i]);
+    }
+
+    for(int y=0; y < quad_yxmap->rows; y++) {
+        for (int x = 0; x < quad_yxmap->cols; x++) {
+            ceres::CostFunction *cost_function = TimeEnergy::Create(last_mesh->at<Vec2d>(y,x)[0], last_mesh->at<Vec2d>(y,x)[1]);
+            problem->AddResidualBlock(cost_function, nullptr, &quad_yxmap->at<Vec2d>(y,x)[0], &quad_yxmap->at<Vec2d>(y,x)[1]);
+        }
     }
 
     int deltas[4][2] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
@@ -164,25 +195,27 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
 
         ceres::CostFunction * cost_function1 =
                 BoundaryEnergy::Create(0, 0);
-        problem->AddResidualBlock(cost_function1, NULL, &quad_yxmap->at<Vec2d>(y, 4)[0]);
+        problem->AddResidualBlock(cost_function1, NULL, &quad_yxmap->at<Vec2d>(y, 0)[0]);
 
         ceres::CostFunction * cost_function2 =
                 BoundaryEnergy::Create(double(image->cols), 1);
 
-        problem->AddResidualBlock(cost_function2, NULL, &quad_yxmap->at<Vec2d>(y, 77)[0]);
+        problem->AddResidualBlock(cost_function2, NULL, &quad_yxmap->at<Vec2d>(y, 85)[0]);
 
         problem->SetParameterBlockConstant(&quad_yxmap->at<Vec2d>(y,0)[0]);
         problem->SetParameterBlockConstant(&quad_yxmap->at<Vec2d>(y,(quad_yxmap->cols-1))[0]);
     }
 
+
     for (int x=0; x < quad_yxmap->cols; x++) {
 
         ceres::CostFunction * cost_function1 =
                 BoundaryEnergy::Create(0, 0);
-        problem->AddResidualBlock(cost_function1, NULL, &quad_yxmap->at<Vec2d>(4, x)[1]);
+        problem->AddResidualBlock(cost_function1, NULL, &quad_yxmap->at<Vec2d>(0, x)[1]);
+
         ceres::CostFunction * cost_function2 =
                 BoundaryEnergy::Create(double(image->rows), 1);
-        problem->AddResidualBlock(cost_function2, NULL, &quad_yxmap->at<Vec2d>(102, x)[1]);
+        problem->AddResidualBlock(cost_function2, NULL, &quad_yxmap->at<Vec2d>(110, x)[1]);
 
         problem->SetParameterBlockConstant(&quad_yxmap->at<Vec2d>(0,x)[1]);
         problem->SetParameterBlockConstant(&quad_yxmap->at<Vec2d>((quad_yxmap->rows-1), x)[1]);
@@ -190,10 +223,12 @@ void DefineProblem(Problem* problem, Mat* quad_yxmap, Mat *image, Mat *stereo_yx
 
     Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    options.max_num_iterations = max_iter;
     options.minimizer_progress_to_stdout = true;
+    options.num_threads = 8;
     Solver::Summary summary;
     Solve(options, problem, &summary);
 
-    std::cout << summary.BriefReport() << "\n";
+    std::cout << summary.BriefReport() << "\n\n\n";
 }
 
